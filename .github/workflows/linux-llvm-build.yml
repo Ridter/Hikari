@@ -41,8 +41,9 @@ jobs:
       - name: Check toolchain versions
         run: |
           clang --version
-          lld --version
+          ld.lld --version
           ninja --version
+          cmake --version
 
       - name: Configure LLVM
         run: |
