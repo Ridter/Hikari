@@ -1,11 +1,10 @@
-
 <h1 align="center">KomiMoe/Hikari</h1>
 <h2 align="center">曾用名: Arkari (请给我点小星星和打钱) </h2>
 
 <h3 align="center">
-  <a href="https://discord.gg/f5nDYjsrKZ">Discord群组:
-  <img width="180" src="https://discordapp.com/api/guilds/1391744742148145294/widget.png" />
- </a>
+  <a href="https://discord.gg/f5nDYjsrKZ">
+    <img src="https://img.shields.io/badge/Discord-加入群组-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="加入Discord群组" />
+  </a>
 </h3>
 
 <p align="center">
@@ -20,6 +19,11 @@
  </a>
  <a href="https://github.com/KomiMoe/Hikari/LICENSE">
   <img src="https://img.shields.io/github/license/KomiMoe/Hikari?"/> 
+ </a>
+</p>
+<p align="center">
+ <a href="./README_en.md">
+  <img src="https://img.shields.io/badge/README-English-blue.svg" alt="Read in English"/>
  </a>
 </p>
 <h3 align="center">Yet another llvm based obfuscator based on goron</h3>
