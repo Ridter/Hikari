@@ -17,32 +17,26 @@ jobs:
   build:
     timeout-minutes: 150
     runs-on: ubuntu-latest
-    container:
-      image: alpine:3.19
     env:
       BUILD_TYPE: Release
     steps:
-      - name: Install dependencies
-        run: |
-          apk update
-          apk add --no-cache \
-            build-base \
-            clang \
-            lld \
-            ninja \
-            ccache \
-            cmake \
-            python3 \
-            git \
-            linux-headers \
-            zlib-static \
-            zlib-dev
-            
       - name: Set CORES
         run: echo "CORES=$(nproc)" >> "$GITHUB_ENV"
 
       - name: Checkout Repo
         uses: actions/checkout@v5.0.0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            lld \
+            ninja-build \
+            ccache \
+            cmake \
+            python3
 
       - name: Check toolchain versions
         run: |
@@ -50,23 +44,18 @@ jobs:
           ld.lld --version
           ninja --version
           cmake --version
-          
+
       - name: Configure LLVM
         run: |
           cmake -Bbuild -G Ninja \
             -DLLVM_ENABLE_RPMALLOC=OFF \
             -DLLVM_TOOL_LLVM_SHLIB_BUILD=OFF \
-            -DLLVM_BUILD_LLVM_DYLIB=OFF \
-            -DLLVM_LINK_LLVM_DYLIB=OFF \
             -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_INCLUDE_TOOLS=ON \
             -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLDB_ENABLE_PYTHON=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
-            -DLLVM_ENABLE_ZLIB=FORCE_ON \
-            -DLLVM_ENABLE_TERMINFO=OFF \
-            -DLLVM_ENABLE_LIBEDIT=OFF \
-            -DLLVM_ENABLE_LIBPFM=OFF \
+            -DLLVM_ENABLE_ZLIB=OFF \
             -DCMAKE_BUILD_TYPE="${{ env.BUILD_TYPE }}" \
             -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=install \
@@ -76,36 +65,22 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_EXE_LINKER_FLAGS="-static" \
-            -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
-            -DLLVM_BUILD_STATIC=ON \
             llvm
-            
+
       - name: Build and install
         run: |
           cmake --build build --target install --parallel "${{ env.CORES }}"
-          
-      - name: Strip binaries
-        run: |
-          strip install/bin/clang* || true
-          strip install/bin/lld* || true
-          strip install/bin/ld.lld* || true
-          
-      - name: Verify static linking
-        run: |
-          file install/bin/clang
-          ldd install/bin/clang || echo "clang is statically linked"
-          
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-llvm
-          path: install/bin/
+          path: install/
 
-      - name: Package llvm binaries
+      - name: Package llvm
         run: |
-          tar -czf linux-llvm.tar.gz -C install/bin .
-          
+          tar -czf linux-llvm.tar.gz -C install .
+
       - name: Release
         uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
