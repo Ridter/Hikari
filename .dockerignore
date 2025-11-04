@@ -1,0 +1,61 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+.github
+
+# Build directories
+build/
+build-*/
+install/
+*.tar.gz
+*.zip
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation (not needed for build)
+*.md
+docs/
+LICENSE
+
+# Test files
+test/
+tests/
+
+# CI/CD files (not needed in container)
+.github/
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Temporary files
+*.log
+*.tmp
+tmp/
+temp/
+
+# Cache directories
+.cache/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
