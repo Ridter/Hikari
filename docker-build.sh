@@ -17,6 +17,7 @@ IMAGE_NAME="${DOCKER_IMAGE_NAME:-hikari-llvm}"
 IMAGE_TAG="${DOCKER_IMAGE_TAG:-alpine-3.19}"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 OUTPUT_DIR="${OUTPUT_DIR:-./hikari-install}"
+PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 
 # Detect CPU cores for build parallelism
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -31,6 +32,7 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  Hikari LLVM Alpine Builder${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}Image:${NC} ${FULL_IMAGE_NAME}"
+echo -e "${GREEN}Platform:${NC} ${PLATFORM}"
 echo -e "${GREEN}CPU Cores:${NC} ${CORES}"
 echo -e "${GREEN}Output Dir:${NC} ${OUTPUT_DIR}"
 echo ""
@@ -49,10 +51,12 @@ OPTIONS:
     -c, --clean             Clean build (no cache)
     -o, --output DIR        Output directory (default: ./hikari-install)
     -t, --tag TAG           Docker image tag (default: alpine-3.19)
+    -p, --platform PLATFORM Docker platform (default: linux/amd64)
 
 ENVIRONMENT VARIABLES:
     DOCKER_IMAGE_NAME       Docker image name (default: hikari-llvm)
     DOCKER_IMAGE_TAG        Docker image tag (default: alpine-3.19)
+    DOCKER_PLATFORM         Docker platform (default: linux/amd64)
     OUTPUT_DIR              Output directory for extracted files
 
 EXAMPLES:
@@ -102,6 +106,10 @@ while [[ $# -gt 0 ]]; do
             FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
             shift 2
             ;;
+        -p|--platform)
+            PLATFORM="$2"
+            shift 2
+            ;;
         *)
             echo -e "${RED}Error: Unknown option $1${NC}"
             usage
@@ -115,10 +123,13 @@ build_image() {
     echo -e "${YELLOW}[1/2] Building Docker image...${NC}"
 
     BUILD_ARGS=(
+        "buildx"
         "build"
+        "--platform" "${PLATFORM}"
         "-t" "${FULL_IMAGE_NAME}"
         "-f" "Dockerfile"
         "--target" "runtime"
+        "--load"
     )
 
     if [ "$CLEAN_BUILD" = true ]; then
