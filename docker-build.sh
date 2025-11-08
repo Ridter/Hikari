@@ -158,7 +158,7 @@ extract_binaries() {
 
     # Copy files from container
     echo -e "${BLUE}Copying files from container...${NC}"
-    if ! docker cp "${CONTAINER_ID}:/opt/hikari" "$OUTPUT_DIR"; then
+    if ! docker cp "${CONTAINER_ID}:/hikari" "$OUTPUT_DIR"; then
         echo -e "${RED}Error: Failed to copy files from container${NC}"
         docker rm "${CONTAINER_ID}" >/dev/null 2>&1
         exit 1
@@ -216,13 +216,6 @@ main() {
     else
         build_image
         extract_binaries
-
-        # Ask if user wants to create tarball
-        read -p "Create distribution tarball? [y/N] " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            create_tarball
-        fi
     fi
 
     echo -e "${GREEN}========================================${NC}"
