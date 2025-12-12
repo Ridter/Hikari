@@ -403,7 +403,7 @@ endif()
 include(VersionFromVCS)
 
 option(LLVM_APPEND_VC_REV
-  "Embed the version control system revision in LLVM" ON)
+  "Embed the version control system revision in LLVM" OFF)
 
 set(LLVM_FORCE_VC_REVISION
   "" CACHE STRING "Force custom VC revision for LLVM_APPEND_VC_REV")

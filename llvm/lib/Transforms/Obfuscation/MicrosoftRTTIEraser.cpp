@@ -93,7 +93,7 @@ public:
 
     SmallString<256> result = rtti;
 
-    for (int i = 4; i < result.size(); ++i) {
+    for (size_t i = 4; i < result.size(); ++i) {
       const char currentChar = result[i];
       if (currentChar == '\0') {
         break;

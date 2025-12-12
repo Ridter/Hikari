@@ -345,8 +345,8 @@ Function *StringEncryption::buildDecryptFunction(Module *M, const StringEncrypti
 
   // Decide plain element type and set up function signature accordingly
   Type *PlainEltTy = Entry->IsUTF16 ? Type::getInt16Ty(Ctx) : Type::getInt8Ty(Ctx);
-  PointerType *PlainPtrTy = PointerType::getUnqual(PlainEltTy);
-  PointerType *DataPtrTy = PointerType::getUnqual(Type::getInt8Ty(Ctx)); // data buffer is byte array
+  PointerType *PlainPtrTy = PointerType::getUnqual(Ctx);
+  PointerType *DataPtrTy = PointerType::getUnqual(Ctx); // data buffer is byte array
 
   FunctionType *FuncTy = FunctionType::get(
       Type::getVoidTy(Ctx),
@@ -407,7 +407,7 @@ Function *StringEncryption::buildDecryptFunction(Module *M, const StringEncrypti
     KeyChar = IRB.CreateLoad(IRB.getInt8Ty(), KeyCharPtr);
   } else {
     // bitcast data to i16* and index by KeyIdx
-    Value *KeyBase = IRB.CreateBitCast(Data, PointerType::getUnqual(Type::getInt16Ty(Ctx)));
+    Value *KeyBase = Data;
     Value *KeyCharPtr = IRB.CreateInBoundsGEP(Type::getInt16Ty(Ctx), KeyBase, KeyIdx);
     KeyChar = IRB.CreateLoad(Type::getInt16Ty(Ctx), KeyCharPtr);
   }
@@ -423,8 +423,8 @@ Function *StringEncryption::buildDecryptFunction(Module *M, const StringEncrypti
     Value *Two = IRB.getInt32(2);
     Value *IdxBytes = IRB.CreateMul(LoopCounter, Two);
     Value *EncCharBytePtr = IRB.CreateInBoundsGEP(IRB.getInt8Ty(), EncPtr, IdxBytes);
-    // bitcast pointer to i16* then load
-    Value *EncChar16Ptr = IRB.CreateBitCast(EncCharBytePtr, PointerType::getUnqual(Type::getInt16Ty(Ctx)));
+    // use opaque pointer directly then load
+    Value *EncChar16Ptr = EncCharBytePtr;
     EncChar = IRB.CreateLoad(Type::getInt16Ty(Ctx), EncChar16Ptr, true);
   }
 

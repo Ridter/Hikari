@@ -10,6 +10,7 @@
 #include "llvm/ADT/APInt.h"
 
 #include <random>
+#include <string>
 
 #define DEBUG_TYPE "icall"
 
@@ -87,7 +88,7 @@ struct IndirectCall : public FunctionPass {
 
     CreatePageTableArgs createPageTableArgs;
     createPageTableArgs.CountLoop = 1;
-    createPageTableArgs.GVNamePrefix = M.getName().str() + "_IndirectCallee" ;
+    createPageTableArgs.GVNamePrefix = RandomEngine.get_random_name(12);
     createPageTableArgs.RandomEngine = &RandomEngine;
     createPageTableArgs.M = &M;
     createPageTableArgs.Objects = &Callees;
@@ -130,7 +131,7 @@ struct IndirectCall : public FunctionPass {
     if (opt.level()) {
       CreatePageTableArgs createPageTableArgs;
       createPageTableArgs.CountLoop = opt.level();
-      createPageTableArgs.GVNamePrefix = M.getName().str() + Fn.getName().str() + "_IndirectCallee" ;
+      createPageTableArgs.GVNamePrefix = RandomEngine.get_random_name(12);
       createPageTableArgs.RandomEngine = &RandomEngine;
       createPageTableArgs.M = &M;
       createPageTableArgs.Objects = &FuncCallees;
@@ -166,10 +167,11 @@ struct IndirectCall : public FunctionPass {
       buildDecrypt.FuncPageTable = &FuncCalleePageTable;
       buildDecrypt.ModuleKey = CalleeKeys[Callee];
       buildDecrypt.FuncKey = FuncKeys[Callee];
+      buildDecrypt.RandomEngine = &RandomEngine;
 
 
       auto FnPtr = buildPageTableDecryptIR(buildDecrypt);
-      FnPtr->setName("Call_" + Callee->getName());
+      FnPtr->setName("");
       CB->setCalledOperand(FnPtr);
     }
 

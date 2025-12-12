@@ -805,6 +805,16 @@ uint64_t CryptoUtils::get_uint64_t() {
   return ret;
 }
 
+std::string CryptoUtils::get_random_name(size_t length) {
+  static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
+  std::string result;
+  result.reserve(length);
+  for (size_t i = 0; i < length; ++i) {
+    result += charset[get_uint32_t() % 26];
+  }
+  return result;
+}
+
 uint32_t CryptoUtils::get_range(const uint32_t max) {
   uint32_t log, r, mask;
 
@@ -938,7 +948,7 @@ int CryptoUtils::sha256_process(sha256_state *md, const unsigned char *in,
   }
   while (inlen > 0) {
     if (md->curlen == 0 && inlen >= 64) {
-      if ((err = sha256_compress(md, (unsigned char *)in)) != 0) {
+      if ((err = sha256_compress(md, const_cast<unsigned char *>(reinterpret_cast<const unsigned char *>(in)))) != 0) {
         return err;
       }
       md->length += 64 * 8;

@@ -84,10 +84,11 @@ CallBase* fixEH(CallBase* CB) {
   if (!EHBlock || !EHBlock->isEHPad()) {
     return CB;
   }
-  const auto EHPad = EHBlock->getFirstNonPHI();
+  const auto EHPadIt = EHBlock->getFirstNonPHIIt();
+  const auto EHPad = &*EHPadIt;
 
   const OperandBundleDef OB("funclet", EHPad);
-  auto *NewCall = CallBase::addOperandBundle(CB, LLVMContext::OB_funclet, OB, CB);
+  auto *NewCall = CallBase::addOperandBundle(CB, LLVMContext::OB_funclet, OB, EHPadIt);
   NewCall->copyMetadata(*CB);
   CB->replaceAllUsesWith(NewCall);
   CB->eraseFromParent();
@@ -126,7 +127,7 @@ void LowerConstantExpr(Function &F) {
         if (ConstantExpr *CE = dyn_cast<
           ConstantExpr>(PHI->getIncomingValue(i))) {
           Instruction *NewInst = CE->getAsInstruction();
-          NewInst->insertBefore(TI);
+          NewInst->insertBefore(TI->getIterator());
           PHI->setIncomingValue(i, NewInst);
           WorkList.insert(NewInst);
         }
@@ -135,7 +136,7 @@ void LowerConstantExpr(Function &F) {
       for (unsigned int i = 0; i < I->getNumOperands(); ++i) {
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(I->getOperand(i))) {
           Instruction *NewInst = CE->getAsInstruction();
-          NewInst->insertBefore(I);
+          NewInst->insertBefore(I->getIterator());
           I->replaceUsesOfWith(CE, NewInst);
           WorkList.insert(NewInst);
         }
@@ -199,6 +200,18 @@ void maskCipher(uint8_t mask, APInt &preIndex, unsigned objKey, unsigned newInde
   case 5:
     preIndex = preIndex.rotr(objKey - newIndex);
     break;
+  case 6:
+    preIndex = preIndex + objKey;
+    break;
+  case 7:
+    preIndex = preIndex - objKey;
+    break;
+  case 8:
+    preIndex = preIndex * (objKey | 1);
+    break;
+  case 9:
+    preIndex = preIndex.reverseBits();
+    break;
   default:
     preIndex = preIndex ^ objKey;
     break;
@@ -219,10 +232,10 @@ void createPageTable(const CreatePageTableArgs &args) {
   }
 
   {
-    auto GVNameObjects(args.GVNamePrefix + "_objects");
+    auto GVNameObjects(args.GVNamePrefix + args.RandomEngine->get_random_name(6));
     auto ATy = ArrayType::get(GVObjects[0]->getType(), GVObjects.size());
     auto CA = ConstantArray::get(ATy, ArrayRef(GVObjects));
-    auto GV = new GlobalVariable(*args.M, ATy, false, 
+    auto GV = new GlobalVariable(*args.M, ATy, false,
                                  GlobalValue::LinkageTypes::InternalLinkage,
                                  CA, GVNameObjects);
     GV->addMetadata("noobf", *MDNode::get(args.M->getContext(), {}));
@@ -240,8 +253,8 @@ void createPageTable(const CreatePageTableArgs &args) {
       const auto ObjMask = static_cast<uint32_t>(ObjFullKey >> 32);
 
       APInt preIndex(32, args.IndexMap->at(Obj));
-      for (unsigned k = 0; k < 8; ++k) {
-        const auto mask = static_cast<uint8_t>(ObjMask >> (k * 3)) % 6u;
+      for (unsigned k = 0; k < 12; ++k) {
+        const auto mask = static_cast<uint8_t>(ObjMask >> (k * 2)) % 10u;
         maskCipher(mask, preIndex, ObjKey, j);
       }
       auto toWriteData = ConstantInt::get(Int32Ty, preIndex);
@@ -251,7 +264,7 @@ void createPageTable(const CreatePageTableArgs &args) {
 
     {
 
-      auto GVNameObjPageTable(args.GVNamePrefix + "_page_table_" + std::to_string(i));
+      auto GVNameObjPageTable(args.GVNamePrefix + args.RandomEngine->get_random_name(6) + std::to_string(i));
       auto IATy = ArrayType::get(Int32Ty, ConstantObjectIndex.size());
       auto IA = ConstantArray::get(IATy, ArrayRef(ConstantObjectIndex));
       auto GV = new GlobalVariable(*args.M, IATy, false,
@@ -281,8 +294,8 @@ void enhancedPageTable(const CreatePageTableArgs &args, std::unordered_map<Const
                            args.IndexMap->at(Obj) :
                            FuncIndexMap->at(Obj));
 
-      for (unsigned k = 0; k < 4 * args.CountLoop; ++k) {
-        const auto mask = static_cast<uint8_t>(ObjMask >> (k * 2)) % 6u;
+      for (unsigned k = 0; k < 6 * args.CountLoop; ++k) {
+        const auto mask = static_cast<uint8_t>(ObjMask >> (k * 2)) % 10u;
         maskCipher(mask, preIndex, ObjKey, j);
       }
       auto toWriteData = ConstantInt::get(Int32Ty, preIndex);
@@ -291,7 +304,7 @@ void enhancedPageTable(const CreatePageTableArgs &args, std::unordered_map<Const
     }
 
     {
-      auto GVNameObjPage(args.GVNamePrefix + "_enhanced_page_table_" + std::to_string(i));
+      auto GVNameObjPage(args.GVNamePrefix + args.RandomEngine->get_random_name(6) + std::to_string(i));
       auto IATy = ArrayType::get(Int32Ty, ConstantObjectIndex.size());
       auto IA = ConstantArray::get(IATy, ArrayRef(ConstantObjectIndex));
       auto GV = new GlobalVariable(*args.M, IATy, false, GlobalValue::LinkageTypes::PrivateLinkage,
@@ -316,8 +329,8 @@ Value * buildPageTableDecryptIR(const BuildDecryptArgs &args) {
   Value *NextIndex = args.NextIndexValue;
   if (!NextIndex) {
     auto GVInitIndex = new GlobalVariable(*M, Int32Ty, false, GlobalValue::PrivateLinkage,
-      ConstantInt::get(Int32Ty, args.NextIndex), 
-      M->getName() + args.Fn->getName() + "_InitIndex" +
+      ConstantInt::get(Int32Ty, args.NextIndex),
+      args.RandomEngine->get_random_name(12) +
       std::to_string(args.NextIndex));
     GVInitIndex->addMetadata("noobf", *MDNode::get(Ctx, {}));
     NextIndex = IRB.CreateAlignedLoad(Int32Ty, GVInitIndex, Align{1}, true);
@@ -341,6 +354,18 @@ Value * buildPageTableDecryptIR(const BuildDecryptArgs &args) {
     //     break;
     //   case 5:
     //     preIndex = preIndex.rotr(objKey - newIndex);
+    //     break;
+    //   case 6:
+    //     preIndex = preIndex + objKey;
+    //     break;
+    //   case 7:
+    //     preIndex = preIndex - objKey;
+    //     break;
+    //   case 8:
+    //     preIndex = preIndex * (objKey | 1);
+    //     break;
+    //   case 9:
+    //     preIndex = preIndex.reverseBits();
     //     break;
     //   default:
     //     preIndex = preIndex ^ objKey;
@@ -375,6 +400,37 @@ Value * buildPageTableDecryptIR(const BuildDecryptArgs &args) {
         Intrinsic::getOrInsertDeclaration(M, Intrinsic::fshl, {NextIndex->getType()}),
         {NextIndex, NextIndex, IRB.CreateSub(ObjKey, PrevIndex)});
       break;
+    case 6:
+      // preIndex = preIndex + objKey; -> decrypt: sub
+      NextIndex = IRB.CreateSub(NextIndex, ObjKey);
+      break;
+    case 7:
+      // preIndex = preIndex - objKey; -> decrypt: add
+      NextIndex = IRB.CreateAdd(NextIndex, ObjKey);
+      break;
+    case 8: {
+      // preIndex = preIndex * (objKey | 1); -> decrypt: mul by modular inverse
+      auto Int32Ty = IntegerType::getInt32Ty(M->getContext());
+      auto OddKey = IRB.CreateOr(ObjKey, ConstantInt::get(Int32Ty, 1));
+      // Compute modular multiplicative inverse using extended Euclidean algorithm
+      // For odd numbers mod 2^32, the inverse can be computed iteratively
+      // inv = key * (2 - key * inv) repeated
+      auto Inv = OddKey;
+      for (int i = 0; i < 5; ++i) {
+        auto Mul = IRB.CreateMul(OddKey, Inv);
+        auto Two = ConstantInt::get(Int32Ty, 2);
+        auto Sub = IRB.CreateSub(Two, Mul);
+        Inv = IRB.CreateMul(Inv, Sub);
+      }
+      NextIndex = IRB.CreateMul(NextIndex, Inv);
+      break;
+    }
+    case 9:
+      // preIndex = preIndex.reverseBits();
+      NextIndex = IRB.CreateCall(
+        Intrinsic::getOrInsertDeclaration(M, Intrinsic::bitreverse, {NextIndex->getType()}),
+        {NextIndex});
+      break;
     default:
       // preIndex = preIndex ^ ObjKey;
       NextIndex = IRB.CreateXor(NextIndex, ObjKey);
@@ -394,8 +450,8 @@ Value * buildPageTableDecryptIR(const BuildDecryptArgs &args) {
           {Zero, NextIndex});
       NextIndex = IRB.CreateLoad(Int32Ty, GEP);
       std::vector<uint8_t> maskIndex;
-      for (unsigned j = 0; j < 4 * args.FuncLoopCount; ++j) {
-        auto mask = static_cast<uint8_t>(FuncMask >> (j * 2)) % 6u;
+      for (unsigned j = 0; j < 6 * args.FuncLoopCount; ++j) {
+        auto mask = static_cast<uint8_t>(FuncMask >> (j * 2)) % 10u;
         maskIndex.push_back(mask);
       }
       for (int j = maskIndex.size() - 1; j >= 0; --j) {
@@ -415,8 +471,8 @@ Value * buildPageTableDecryptIR(const BuildDecryptArgs &args) {
     if (i) {
       NextIndex = IRB.CreateLoad(Int32Ty, GEP);
       std::vector<uint8_t> maskIndex;
-      for (unsigned j = 0; j < 8; ++j) {
-        auto mask = static_cast<uint8_t>(ModuleMask >> (j * 3)) % 6u;
+      for (unsigned j = 0; j < 12; ++j) {
+        auto mask = static_cast<uint8_t>(ModuleMask >> (j * 2)) % 10u;
         maskIndex.push_back(mask);
       }
       for (int j = maskIndex.size() - 1; j >= 0; --j) {

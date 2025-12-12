@@ -37,6 +37,7 @@ struct BuildDecryptArgs {
   std::vector<GlobalVariable *> *FuncPageTable;
   uint64_t ModuleKey;
   uint64_t FuncKey;
+  CryptoUtils *RandomEngine;
 };
 
 bool valueEscapes(Instruction *Inst);

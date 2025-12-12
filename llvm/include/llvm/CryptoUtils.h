@@ -225,6 +225,9 @@ public:
   // Returns a uniformly distributed 64-bit value
   uint64_t get_uint64_t();
 
+  // Returns a random string of lowercase letters
+  std::string get_random_name(size_t length = 8);
+
   // Scramble a 32-bit value depending on a 128-bit value
   unsigned scramble32(const unsigned in, const char key[16]);
   unsigned long long scramble64(const unsigned in, const char key[16]);

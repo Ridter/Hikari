@@ -171,6 +171,7 @@ struct IndirectBranch : public FunctionPass {
         buildDecrypt.FuncPageTable = &FuncBBPageTable;
         buildDecrypt.ModuleKey = BBKeys[AddrTBB];
         buildDecrypt.FuncKey = FuncKeys[AddrTBB];
+        buildDecrypt.RandomEngine = &RandomEngine;
 
         auto TargetPtr = buildPageTableDecryptIR(buildDecrypt);
         IndirectBrInst *IBI = IndirectBrInst::Create(TargetPtr, 2);

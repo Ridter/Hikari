@@ -166,6 +166,7 @@ struct IndirectGlobalVariable : public FunctionPass {
           buildDecrypt.FuncPageTable = &FuncGVPageTable;
           buildDecrypt.ModuleKey = GVKeys[GV];
           buildDecrypt.FuncKey = FuncKeys[GV];
+          buildDecrypt.RandomEngine = &RandomEngine;
 
           auto GVPtr = buildPageTableDecryptIR(buildDecrypt);
           if (PHI)

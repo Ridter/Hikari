@@ -191,13 +191,16 @@ struct ObfuscationPassManager : public ModulePass {
 
     add(llvm::createConstantIntEncryptionPass(Options.get()));
 
-    add(llvm::createIndirectGlobalVariablePass(Options.get()));
-
     add(llvm::createConstantFPEncryptionPass(Options.get()));
 
+    // StringEncryption must run BEFORE IndirectGlobalVariable
+    // Otherwise IndirectGV creates references to string constants with !noobf,
+    // preventing StringEncryption from removing the original plaintext strings
     if (EnableIRStringEncryption || Options->cseOpt()->isEnabled()) {
       add(llvm::createStringEncryptionPass(Options.get()));
     }
+
+    add(llvm::createIndirectGlobalVariablePass(Options.get()));
 
     add(llvm::createIndirectCallPass(Options.get()));
     add(llvm::createFlatteningPass(pointerSize, Options.get()));

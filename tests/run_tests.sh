@@ -55,7 +55,7 @@ test_icall() {
     compare_test "icall 对比" "test_obfuscation.c" "-mllvm -irobf-icall"
 
     print_section "IR 特征"
-    ir_check "间接调用表" "test_obfuscation.c" "-mllvm -irobf-icall" "IndirectCallee"
+    ir_check "间接调用表" "test_obfuscation.c" "-mllvm -irobf-icall" "call ptr"
 }
 
 test_indbr() {
