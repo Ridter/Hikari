@@ -4,6 +4,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Transforms/Obfuscation/ObfuscationOptions.h"
+#include "llvm/Transforms/Obfuscation/LinearMBA.h"
 #include "llvm/IR/Module.h"
 
 
@@ -86,6 +87,12 @@ EnableRttiEraser("irobf-rtti", cl::init(false), cl::NotHidden,
   cl::ZeroOrMore);
 
 
+static cl::opt<bool>
+EnableLinearMBA("irobf-mba", cl::init(false), cl::NotHidden,
+                cl::desc("Enable Linear MBA Obfuscation."),
+                cl::ZeroOrMore);
+
+
 static cl::opt<std::string>
 HikariConfigPath("hikari-cfg", cl::init(std::string{}), cl::NotHidden,
                  cl::desc("Hikari config path."),
@@ -161,6 +168,7 @@ struct ObfuscationPassManager : public ModulePass {
     Opt->cfeOpt()->readOpt(EnableIRConstantFPEncryption,
                            LevelIRConstantFPEncryption);
     Opt->rttiOpt()->readOpt(EnableRttiEraser);
+    Opt->mbaOpt()->readOpt(EnableLinearMBA);
     return Opt;
   }
 
@@ -169,7 +177,7 @@ struct ObfuscationPassManager : public ModulePass {
     if (EnableIndirectBr || EnableIndirectCall || EnableIndirectGV ||
         EnableIRFlattening || EnableIRStringEncryption ||
         EnableIRConstantIntEncryption || EnableIRConstantFPEncryption ||
-        EnableRttiEraser || !HikariConfigPath.empty()) {
+        EnableRttiEraser || EnableLinearMBA || !HikariConfigPath.empty()) {
       EnableIRObfuscation = true;
     }
 
@@ -197,6 +205,10 @@ struct ObfuscationPassManager : public ModulePass {
 
     if (EnableRttiEraser || Options->rttiOpt()->isEnabled()) {
       add(llvm::createMsRttiEraserPass(Options.get()));
+    }
+
+    if (EnableLinearMBA || Options->mbaOpt()->isEnabled()) {
+      add(llvm::createLinearMBAPass(Options.get()));
     }
     bool Changed = run(M);
 
