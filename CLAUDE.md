@@ -1,10 +1,13 @@
 # CLAUDE.md
 
-本文件为 Claude Code (claude.ai/code) 提供代码库工作指南。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 项目概述
 
 Hikari 是基于 LLVM 的代码混淆器（Goron 分支），在 LLVM IR 层面提供多种混淆技术。基于 LLVM 21.x，将自定义混淆 Pass 集成到 Clang/LLD 中。
+
+**仓库**: KomiMoe/Hikari
+**主分支**: llvm-21.x
 
 ## 构建命令
 
@@ -66,10 +69,18 @@ xcode-select --install
 
 ### 快速增量编译
 ```bash
-./quick_test.sh build      # 只增量编译 clang
-./quick_test.sh lib        # 只编译 LLVMObfuscation 库（最快）
-./quick_test.sh test all   # 运行所有测试
-./quick_test.sh ir icall   # 查看 icall 混淆的 IR
+./quick_test.sh              # 增量编译 + 快速测试
+./quick_test.sh build        # 只增量编译 clang
+./quick_test.sh lib          # 只编译 LLVMObfuscation 库（最快，修改 Pass 后使用）
+./quick_test.sh test all     # 运行所有测试
+./quick_test.sh ir icall     # 查看 icall 混淆的 IR
+```
+
+### 单独编译目标
+```bash
+cmake --build build --target clang -j$(nproc)           # 编译 clang
+cmake --build build --target LLVMObfuscation -j$(nproc) # 只编译混淆库
+cmake --build build --target install                    # 完整安装
 ```
 
 ## 架构
@@ -87,7 +98,9 @@ xcode-select --install
 - **ConstantIntEncryption.cpp/h** - 整数常量加密 (`-mllvm -irobf-cie`)
 - **ConstantFPEncryption.cpp/h** - 浮点常量加密 (`-mllvm -irobf-cfe`)
 - **LinearMBA.cpp/h** - 混合布尔算术混淆 (`-mllvm -irobf-mba`)
+- **MBAMatrix.cpp/h** - MBA 矩阵运算支持
 - **MicrosoftRTTIEraser.cpp/h** - RTTI 名称擦除 (`-mllvm -irobf-rtti`)
+- **LegacyLowerSwitch.cpp/h** - Switch 语句降级（Flattening 依赖）
 - **CryptoUtils.cpp/h** - 加密工具类
 - **Utils.cpp/h** - 通用工具函数
 
@@ -122,15 +135,27 @@ int main() { ... }
 clang -mllvm -hikari-cfg="config.json" main.c
 ```
 
+### 仅注解模式
+仅使用 `-mllvm -irobf` 而不指定具体 Pass，可通过函数注解精确控制混淆范围：
+```bash
+clang -mllvm -irobf main.c  # 配合 [[clang::annotate("+icall")]] 使用
+```
+
 ## 测试
 
 ### 运行测试
 ```bash
-cd tests
-./run_tests.sh all      # 测试所有 Pass
-./run_tests.sh mba      # 只测试 MBA
-./run_tests.sh icall    # 只测试 IndirectCall
-./run_tests.sh quick    # 快速测试
+./tests/run_tests.sh all      # 测试所有 Pass
+./tests/run_tests.sh mba      # 只测试 MBA
+./tests/run_tests.sh icall    # 只测试 IndirectCall
+./tests/run_tests.sh indbr    # 只测试 IndirectBranch
+./tests/run_tests.sh cse      # 只测试 StringEncryption
+./tests/run_tests.sh indgv    # 只测试 IndirectGlobalVariable
+./tests/run_tests.sh fla      # 只测试 Flattening
+./tests/run_tests.sh cie      # 只测试 ConstantIntEncryption
+./tests/run_tests.sh cfe      # 只测试 ConstantFPEncryption
+./tests/run_tests.sh combined # 测试多 Pass 组合
+./tests/run_tests.sh quick    # 快速测试
 ```
 
 ### 测试文件
@@ -152,6 +177,12 @@ Pass 按以下顺序执行（在 `ObfuscationPassManager.cpp` 中定义）：
 8. MsRttiEraser (rtti)
 9. LinearMBA (mba)
 
+## Pass 集成点
+
+混淆 Pass 通过 `llvm/lib/Passes/PassBuilderPipelines.cpp` 集成到 LLVM 管道：
+- `ObfuscationPassManagerPass` 在模块优化阶段运行
+- 需要 `#include "llvm/Transforms/Obfuscation/ObfuscationPassManager.h"`
+
 ## 代码审查指南
 
 修改混淆 Pass 时：
@@ -159,3 +190,4 @@ Pass 按以下顺序执行（在 `ObfuscationPassManager.cpp` 中定义）：
 - 确保调试信息保持有效，特别是分支和调用
 - 密切关注修改函数控制流的代码
 - 注意 Pass 执行顺序的依赖关系
+- 修改后运行 `./quick_test.sh test all` 验证所有 Pass 正常工作
